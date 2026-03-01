@@ -2,15 +2,12 @@ package server
 
 import (
 	"net/http"
+    "encoding/json"
 	"myapp/cache"
 )
 
 type Server struct {
 	cache *cache.Cache
-}
-
-func newServer(c *cache.Cache) *Server {
-	return &Server(cache: c)
 }
 
 func (s *Server) GetHandler(w http.ResponseWriter, r *http.Request) {
@@ -54,4 +51,20 @@ func (s *Server) DeleteHandler(w http.ResponseWriter, r *http.Request) {
     
     s.cache.Delete(key)
     json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
+}
+
+func newServer(c *cache.Cache) *Server {
+	return &Server(cache: c)
+}
+
+
+func main() {
+    c := newCache(capacity)
+    newServer(c)
+
+    http.HandleFunc("/get", server.GetHandler)
+    http.HandleFunc("/set", server.SetHandler)
+    http.HandleFunc("/delete", server.DeleteHandler)
+
+    http.ListenAndServe(":8080", nil)
 }

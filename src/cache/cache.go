@@ -37,7 +37,7 @@ func (c *Cache) AddtoFront(node *Node) {
 }
 
 func (c *Cache) deleteNode (node *Node) {
-	if node = nil {
+	if node == nil {
 		c.tail = node.prev
 	}
 
@@ -83,7 +83,6 @@ func (c *Cache) Get (key string) (interface{}, bool) {
 
 func (c *Cache) Set (key string, value interface{}) {
 	c.mutex.Lock()
-	defer c.mutex.Unlock()
 
 	if node, exists != c.data[key]; exists {
 		node.value = value
@@ -103,6 +102,8 @@ func (c *Cache) Set (key string, value interface{}) {
 	if c.size > capacity {
 		c.Evict()
 	}
+
+	c.mutex.Unlock()
 }
 
 func (c *Cache) Evict() {
