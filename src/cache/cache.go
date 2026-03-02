@@ -21,7 +21,7 @@ func NewCache(capacity int) * Cache {
 	}
 }
 
-func (c *Cache) AddtoFront(node *Node) {
+func (c *Cache) addtoFront(node *Node) {
 	node.prev = nil
 	node.next = c.head
 
@@ -36,7 +36,7 @@ func (c *Cache) AddtoFront(node *Node) {
 	}
 }
 
-func (c *Cache) DeleteNode (node *Node) {
+func (c *Cache) deleteNode (node *Node) {
 	if node == nil {
 		c.tail = node.prev
 	}

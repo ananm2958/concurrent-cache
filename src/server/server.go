@@ -35,51 +35,50 @@ func writeJSON (w http.ResponseWriter, r *http.Request, var int statusCode) {
     }
 }
 
-func (s *Server) GetHandler(w http.ResponseWriter, r *http.Request) {
-    key := r.URL.Query().Get("key")
-
-    if key == "" {
-        writeJSON(w, r, 404)
-        return
-    }
-
-    value, ok := s.cache.Get(key)
-
-    if !ok {
-        writeJSON(w, r, 400)
-        return
-    }
-
-    writeJSON(w, r, 200)
-}
-
-func (s *Server) SetHandler(w http.ResponseWriter, r *http.Request) {
-    key := r.URL.Query().Get("key")
-    value := r.URL.Query().Get("value")
-
-    if key == "" {
-        writeJSON(w, r, 400)
-        return
-    }
-
-    else if value == "" {
-        writeJSON(w, r, 404)
-        return
-    }
-
-    s.cache.Set(key, value)
-    writeJSON(w, r, 200)
-}
-
-func (s *Server) DeleteHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) CacheHandler(w http.ResponseWriter, r, *http.Request) {
     key := r.URL.Query().Get("key")
 
     if key == "" {
         writeJSON(w, r, 400)
     }
+
+    switch r.Method {
+
+    case GET:
+        value, found := s.cache.get(key)
+
+        if !found {
+        writeJSON(w, r, 400)
+        return
+    }
+
+        writeJSON(w, r, 200)
+
+    case SET:
+        if key == "" {
+            writeJSON(w, r, 400)
+            return
+        }
+
+        else if value == "" {
+            writeJSON(w, r, 400)
+            return
+        }
+
+        s.cache.Set(key, value)
+        writeJSON(w, r, 200)
+
+    case DELETE:
+        if key == "" {
+            writeJSON(w, r, 400)
+        }
+
+        s.cache.Delete(key)
+        writeJSON(w, r, 200)
+
     
-    s.cache.Delete(key)
-    writeJSON(w, r, 200)
+
+    }
 }
 
 func NewServer(c *cache.Cache) -> *Server {
