@@ -14,7 +14,7 @@ type Cache struct {
 	mutex sync.RWMutex
 }
 
-func newCache(capacity int) * Cache {
+func NewCache(capacity int) * Cache {
 	return &Cache {
 		data: make(map[string]*Node),
 		capacity: capacity,
@@ -31,21 +31,21 @@ func (c *Cache) AddtoFront(node *Node) {
 
 	c.head = node
 
-	if c.tail = nil {
+	if c.tail == nil {
 		c.tail = node
 	}
 }
 
-func (c *Cache) deleteNode (node *Node) {
+func (c *Cache) DeleteNode (node *Node) {
 	if node == nil {
 		c.tail = node.prev
 	}
 
-	else if node = c.head {
+	else if node == c.head {
 		c.head = node.next
 	}
 
-	else if c.head = node {
+	else if c.head == node {
 		c.head = node.next
 	}
 
@@ -57,11 +57,10 @@ func (c *Cache) deleteNode (node *Node) {
 		node.next.prev = node.prev
 	}
 
-	return node
 }
 
 func (c *Cache) MoveToFront (node *Node) {
-	c.deleteNode(node)
+	c.DeleteNode(node)
 	c.AddtoFront(node)
 }
 
@@ -69,7 +68,7 @@ func (c *Cache) Get (key string) (interface{}, bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	node, exists := d.data[key]
+	node, exists := c.data[key]
 
 	if !exists {
 		return nil, false
@@ -83,8 +82,9 @@ func (c *Cache) Get (key string) (interface{}, bool) {
 
 func (c *Cache) Set (key string, value interface{}) {
 	c.mutex.Lock()
+	defer c.mutex.Unlock()
 
-	if node, exists != c.data[key]; exists {
+	if node, exists != c.data[key] {
 		node.value = value
 		c.MoveToFront(node)
 		return
@@ -103,11 +103,11 @@ func (c *Cache) Set (key string, value interface{}) {
 		c.Evict()
 	}
 
-	c.mutex.Unlock()
+
 }
 
 func (c *Cache) Evict() {
-	if c.tail = nil {
+	if c.tail == nil {
 		return
 	}
 

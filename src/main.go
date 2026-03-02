@@ -10,11 +10,12 @@ func main() {
     port := 8080
 
     c := newCache(capacity)
-    s := newServer(c)
+    s := NewServer(c)
 
-    http.handleFunc("/Get", s.GetHandler)
-    http.handleFunc("/Set", s.SetHandler)
-    http.handleFunc("/Delete", s.DeleteHandler)
+    http.HandleFunc("/Get", s.GetHandler)
+    http.HandleFunc("/Set", s.SetHandler)
+    http.HandleFunc("/Delete", s.DeleteHandler)
 
-    http.ListenAndSever(port)
+    http.ListenAndServe(port)
+
 }
