@@ -1,27 +1,38 @@
+package cache
+
+import (
+	"sync"
+	"time"
+)
+
 type Node struct {
-	key string
-	value interface{}
-	prev *Node
-	next *Node
+	key    string
+	value  interface{}
+	prev   *Node
+	next   *Node
+	expiry time.Time
 }
 
 type Cache struct {
-	data map[string] *Node
-	head *Node
-	tail *Node
+	data     map[string]*Node
+	head     *Node
+	tail     *Node
 	capacity int
-	size int
-	mutex sync.RWMutex
+	size     int
+	ttl      time.Duration
+	mutex    sync.RWMutex
 }
 
-func NewCache(capacity int) * Cache {
-	return &Cache {
-		data: make(map[string]*Node),
+func NewCache(capacity int, ttl time.Duration) *Cache {
+	return &Cache{
+		data:     make(map[string]*Node),
 		capacity: capacity,
+		ttl:      ttl,
 	}
 }
 
-func (c *Cache) addtoFront(node *Node) {
+
+func (c *Cache) addToFront(node *Node) {
 	node.prev = nil
 	node.next = c.head
 
@@ -36,92 +47,97 @@ func (c *Cache) addtoFront(node *Node) {
 	}
 }
 
-func (c *Cache) deleteNode (node *Node) {
+func (c *Cache) deleteNode(node *Node) {
 	if node == nil {
+		return
+	}
+
+	if node == c.head {
+		c.head = node.next
+		if c.head != nil {
+			c.head.prev = nil
+		}
+	} else if node == c.tail {
 		c.tail = node.prev
+		if c.tail != nil {
+			c.tail.next = nil
+		}
+	} else {
+		if node.prev != nil {
+			node.prev.next = node.next
+		}
+		if node.next != nil {
+			node.next.prev = node.prev
+		}
 	}
-
-	else if node == c.head {
-		c.head = node.next
-	}
-
-	else if c.head == node {
-		c.head = node.next
-	}
-
-	else if node != c.head {
-		node.prev.next = node.next
-	}
-
-	else {
-		node.next.prev = node.prev
-	}
-
 }
 
-func (c *Cache) MoveToFront (node *Node) {
-	c.DeleteNode(node)
-	c.AddtoFront(node)
+func (c *Cache) moveToFront(node *Node) {
+	c.deleteNode(node)
+	c.addToFront(node)
 }
 
-func (c *Cache) Get (key string) (interface{}, bool) {
+
+
+func (c *Cache) Get(key string) (interface{}, bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	node, exists := c.data[key]
-
 	if !exists {
 		return nil, false
 	}
 
-	else {
-		c.MoveToFront(node)
-		return node.value, true;
+	// TTL check
+	if c.isExpired(node) {
+		c.removeNodeCompletely(node)
+		return nil, false
 	}
+
+	c.moveToFront(node)
+	return node.value, true
 }
 
-func (c *Cache) Set (key string, value interface{}) {
+func (c *Cache) Set(key string, value interface{}) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	if node, exists != c.data[key] {
+	if node, exists := c.data[key]; exists {
 		node.value = value
-		c.MoveToFront(node)
+		node.expiry = time.Now().Add(c.ttl)
+		c.moveToFront(node)
 		return
 	}
 
-	newNode := &Node {
-		key: key,
-		value: value,
+	newNode := &Node{
+		key:    key,
+		value:  value,
+		expiry: time.Now().Add(c.ttl),
 	}
 
 	c.data[key] = newNode
-	c.AddtoFront(newNode)
+	c.addToFront(newNode)
 	c.size++
 
-	if c.size > capacity {
-		c.Evict()
-	}
-
-
+	c.evictIfNeeded()
 }
 
-func (c *Cache) Evict() {
-	if c.tail == nil {
-		return
+func (c *Cache) Delete(key string) bool {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	node, exists := c.data[key]
+	if !exists {
+		return false
 	}
 
-	delete(c.data, c.tail.key)
+	c.removeNodeCompletely(node)
+	return true
+}
 
-	if c.tail.prev != nil {
-		c.tail = c.tail.prev
-		c.tail.next = nil
-	}
 
-	else {
-		c.head = nil
-		c.tail = nil
-	}
-
+func (c *Cache) removeNodeCompletely(node *Node) {
+	c.deleteNode(node)
+	delete(c.data, node.key)
 	c.size--
 }
