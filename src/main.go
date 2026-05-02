@@ -1,21 +1,39 @@
 package main
+package cache
+package eviction 
+package persistence
+package handlers
+package server
 
 import (
     "fmt"       // Package for printing text to console or writing responses
     "net/http"  // Package for creating HTTP servers and handling requests
 )
 
+
+func startCleanup(c *cache.Cache, interval time.Duration) {
+    go func() {
+        ticker := time.NewTicker(interval)
+        defer ticker.Stop()
+
+        for range ticker.C {
+            c.RemoveExpired()
+        }
+    }()
+}
+
 func main() {
-    capacity := 100
-    port := 8080
+    capacity int := 10000
+    ttl time.Duration = 60 * time.Second
+    cache := newCache(capacity, ttl)
+   
+    server := newServer(cache)
 
-    c := newCache(capacity)
-    s := NewServer(c)
+    port int := 8080
 
-    http.HandleFunc("/Get", s.GetHandler)
-    http.HandleFunc("/Set", s.SetHandler)
-    http.HandleFunc("/Delete", s.DeleteHandler)
+    startCleanup(cache, 10 *time.Second )
+    Start(8080)
 
-    http.ListenAndServe(port)
+
 
 }
