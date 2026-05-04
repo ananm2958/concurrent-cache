@@ -104,7 +104,7 @@ Client → Handler
       metrics update
 
 ### Getting Started
-####Prerequisites
+#### Prerequisites
 Go 1.20+
 
 #### Installation
@@ -129,24 +129,24 @@ curl -X POST http://localhost:8080/cache \
 #### View metrics
 - curl http://localhost:8080/metrics
 
-####Background Processes
-The system runs background goroutines for:
+#### Background Processes
+- The system runs background goroutines for:
 
-####Periodic snapshotting
-Expired key cleanup
-(Optional) AOF batching / flushing
+#### Periodic snapshotting
+- Expired key cleanup
+- (Optional) AOF batching / flushing
 
-####Testing
+#### Testing
 Run tests:
 
 go test ./...
 
 Includes:
-Unit tests for cache correctness
-Concurrency tests
-Integration tests for HTTP endpoints
+- Unit tests for cache correctness
+- Concurrency tests
+- Integration tests for HTTP endpoints
 
-####Performance Goals
-High throughput under concurrent load
-Low latency (millisecond-level p99)
-Efficient memory usage with bounded capacity
+#### Performance Goals
+- High throughput under concurrent load
+- Low latency (millisecond-level p99)
+- Efficient memory usage with bounded capacity
