@@ -103,8 +103,8 @@ Client → Handler
           ↓
       metrics update
 
-#### Getting Started
-#Prerequisites
+### Getting Started
+####Prerequisites
 Go 1.20+
 
 #### Installation
