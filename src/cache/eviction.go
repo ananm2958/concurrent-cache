@@ -7,7 +7,9 @@ func (c *Cache) evictIfNeeded() {
 	for c.size > c.capacity {
 		c.evict()
 	}
-	Metrics.evictions++
+
+	s.metrics.Snapshot()
+	s.metrics.RecordEviction()
 }
 
 func (c *Cache) evict() {
@@ -17,7 +19,8 @@ func (c *Cache) evict() {
 
 	node := c.tail
 	c.removeNodeCompletely(node)
-	Metrics.evictions++
+	s.metrics.Snapshot()
+	s.metrics.RecordEviction()
 }
 
 
@@ -37,7 +40,9 @@ func (c *Cache) RemoveExpired() {
 	for _, node := range c.data {
 		if c.isExpired(node) {
 			c.removeNodeCompletely(node)
-			Metrics.evictions++
+			
+			s.metrics.Snapshot()
+			s.metrics.RecordEviction()
 		}
 	}
 }

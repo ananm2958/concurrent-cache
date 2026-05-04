@@ -17,7 +17,6 @@ func (s * Server) HandleGet(w http.ResponseWriter, r * http.Request) {
 
 	if key == "" {
 		writeError(w, "missing key", 400)
-		Metrics.misses++
 		s.metrics.RecordMiss()
 	}
 
@@ -64,6 +63,7 @@ func (s * Server) HandleSet(w http.ResponseWriter, r * http.Request) {
 		var expiry int = 0
 	}
 
+	AOF.AppendSet(key, value, expiry)
 	cache.Set(key, value, expiry)
 
 	WriteJSON(w, map[string]interface{} {"key" : key, "value" : value, "ttl" : ttl}, 200)
@@ -71,8 +71,6 @@ func (s * Server) HandleSet(w http.ResponseWriter, r * http.Request) {
 	s.metrics.RecordRequest()
 	s.metrics.RecordLatency(start)
 	
-	
-
 }
 
 func (s * Server) HandleDelete(w http.responseWriter, r * http.Request) {
@@ -85,7 +83,9 @@ func (s * Server) HandleDelete(w http.responseWriter, r * http.Request) {
 		s.metrics.RecordMiss()
 	}
 
+	AOF.AppendDelete(key)
 	var success bool = Delete(key)
+
 
 	if success == true {
 		WriteJSON(w, map[string]string{"message" : "deleted"}, 200)
@@ -122,7 +122,7 @@ func (s * Server) CacheHandler(w http.ResponseWriter, r * http.Request) {
 
 
 func (s * Server) MetricsHandler(w http.ResponseWriter, r *http.Request) {
-	snapshot = metrics.Snapshot()
+	snapshot = s.metrics.Snapshot()
 
 	w.Header().Set("Content-Type", "text/plain", "version = 0.0.4")
 	w.Write(

@@ -40,5 +40,5 @@ func Start(port int) {
         IdleTimeout: 60 * time.Second, 
     }
 
-    server.ListenAndServer()
+    server.ListenAndServe()
 }
