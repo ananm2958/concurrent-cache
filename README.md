@@ -72,9 +72,9 @@ cache_request_duration_seconds_count 1200
 
 
 ### Architecture
-client → HTTP server → handlers → cache → persistence
-                                ↓
-                             metrics
+<img width="1343" height="302" alt="image" src="https://github.com/user-attachments/assets/48d66e17-c699-4851-b542-22a460c294ea" />
+
+
 Components
 - cache/
   - Core data structure (LRU + TTL)
@@ -87,21 +87,11 @@ Components
 
 ### Request Flow
 #### GET
-Client → Handler → Cache.Get()
-                  ↓
-            hit/miss tracked
-                  ↓
-           latency recorded
-                  ↓
-              response
+<img width="910" height="647" alt="image" src="https://github.com/user-attachments/assets/ea9d4919-dabd-431a-adf8-6c187598854c" />
+
 #### SET / DELETE
-Client → Handler
-          ↓
-      AOF log (durability)
-          ↓
-      Cache mutation
-          ↓
-      metrics update
+<img width="575" height="631" alt="image" src="https://github.com/user-attachments/assets/3bfa9b0f-57b2-4da5-b25d-348ede658513" />
+
 
 ### Getting Started
 #### Prerequisites
