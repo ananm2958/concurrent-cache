@@ -86,7 +86,7 @@ Components
   -  AOF logging, snapshotting, recovery
 
 ### Request Flow
-####GET
+#### GET
 Client → Handler → Cache.Get()
                   ↓
             hit/miss tracked
@@ -94,7 +94,7 @@ Client → Handler → Cache.Get()
            latency recorded
                   ↓
               response
-####SET / DELETE
+#### SET / DELETE
 Client → Handler
           ↓
       AOF log (durability)
@@ -107,27 +107,27 @@ Client → Handler
 #Prerequisites
 Go 1.20+
 
-####Installation
+#### Installation
 git clone <repo-url>
 cd concurrent-cache
 go mod tidy
 Run the server
 go run src/main.go
 
-####Server starts on:
+#### Server starts on:
 http://localhost:8080
 
-####Set a value
+#### Set a value
 curl -X POST http://localhost:8080/cache \
   -d '{"key":"foo","value":"bar"}'
   
-####Get a value
-curl "http://localhost:8080/cache?key=foo"
-Delete a value
-curl -X DELETE "http://localhost:8080/cache?key=foo"
+#### Get a value
+- curl "http://localhost:8080/cache?key=foo"
+- Delete a value
+- curl -X DELETE "http://localhost:8080/cache?key=foo"
 
-####View metrics
-curl http://localhost:8080/metrics
+#### View metrics
+- curl http://localhost:8080/metrics
 
 ####Background Processes
 The system runs background goroutines for:
