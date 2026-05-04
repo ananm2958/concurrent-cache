@@ -1,4 +1,4 @@
-#### Concurrent In-Memory Cache Server
+# Concurrent In-Memory Cache Server
 
 ### Overview
 This project implements a production-style cache system designed to handle high-concurrency workloads while maintaining simplicity, durability, observability, and correctness
@@ -9,26 +9,26 @@ It combines:
 - Persistence via append-only logging (AOF) and periodic snapshots
 - Metrics for monitoring latency, hit rate, and system performance
 
-### Key Features
-## Concurrent Cache
+## Key Features
+### Concurrent Cache
 - Thread-safe cache using sync.RWMutex
 - Supports high read/write throughput
 - Maintains correctness while supporting concurrent access
 
-## LRU Eviction
+### LRU Eviction
 - Least Recently Used (LRU) policy
 - Implemented using:
     - Hashmap for average O(1) lookup
     - Doubly-linked list for O(1) updates
 - Automatically evicts older updates when cache capacity is exceeded
 
-## TTL Expiration
+### TTL Expiration
 - Each key has an expiration time
 - Expired keys are
   - Removed lazily on access
   - Cleaned periodically in the background
 
-## HTTP Server
+### HTTP Server
 - Implements REST-style endpoints:
   - GET /cache?key=...
   - POST /cache
@@ -36,23 +36,23 @@ It combines:
 - JSON-based request/response format
 - Handles concurrent requests as well
 
-## Persistence
-# Append Only File (AOF)
+### Persistence
+#### Append Only File (AOF)
  - Logs every write operation (SET, DELETE)
  - Ensures durability across crashes
  - Replayed on startup to restore recent state
-# Snapshotting
+#### Snapshotting
  - Periodically writes full cache state to disk
  - Reduces recovery time
  - Stored as JSON entries
-# Recovery
+#### Recovery
  - On startup:
      1. Load Snapshot
      2. Replay AOF
 - Restores cache state after unclean shutdown
 
 
-## Metrics and Observability
+### Metrics and Observability
 Exposes Prometheus-style metrics via /metrics:
 - Total requests
 - Cache hits / misses
@@ -71,7 +71,7 @@ cache_request_duration_seconds_sum 2.35
 cache_request_duration_seconds_count 1200
 
 
-## Architecture
+### Architecture
 client → HTTP server → handlers → cache → persistence
                                 ↓
                              metrics
@@ -85,8 +85,8 @@ Components
 - persistence/
   -  AOF logging, snapshotting, recovery
 
-## Request Flow
-#GET
+### Request Flow
+####GET
 Client → Handler → Cache.Get()
                   ↓
             hit/miss tracked
@@ -94,7 +94,7 @@ Client → Handler → Cache.Get()
            latency recorded
                   ↓
               response
-#SET / DELETE
+####SET / DELETE
 Client → Handler
           ↓
       AOF log (durability)
@@ -103,40 +103,40 @@ Client → Handler
           ↓
       metrics update
 
-## Getting Started
+#### Getting Started
 #Prerequisites
 Go 1.20+
 
-#Installation
+####Installation
 git clone <repo-url>
 cd concurrent-cache
 go mod tidy
 Run the server
 go run src/main.go
 
-#Server starts on:
+####Server starts on:
 http://localhost:8080
 
-#Set a value
+####Set a value
 curl -X POST http://localhost:8080/cache \
   -d '{"key":"foo","value":"bar"}'
   
-#Get a value
+####Get a value
 curl "http://localhost:8080/cache?key=foo"
 Delete a value
 curl -X DELETE "http://localhost:8080/cache?key=foo"
 
-#View metrics
+####View metrics
 curl http://localhost:8080/metrics
 
-#Background Processes
+####Background Processes
 The system runs background goroutines for:
 
-#Periodic snapshotting
+####Periodic snapshotting
 Expired key cleanup
 (Optional) AOF batching / flushing
 
-#Testing
+####Testing
 Run tests:
 
 go test ./...
@@ -146,7 +146,7 @@ Unit tests for cache correctness
 Concurrency tests
 Integration tests for HTTP endpoints
 
-#Performance Goals
+####Performance Goals
 High throughput under concurrent load
 Low latency (millisecond-level p99)
 Efficient memory usage with bounded capacity
