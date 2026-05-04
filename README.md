@@ -72,7 +72,8 @@ cache_request_duration_seconds_count 1200
 
 
 ### Architecture
-<img width="1343" height="302" alt="image" src="https://github.com/user-attachments/assets/48d66e17-c699-4851-b542-22a460c294ea" />
+<img width="1502" height="338" alt="image" src="https://github.com/user-attachments/assets/53ce0997-df95-4f03-9dfc-a68effb756f5" />
+
 
 
 Components
