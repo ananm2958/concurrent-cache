@@ -1,5 +1,4 @@
 package cache
-
 import "time"
 
 
@@ -8,8 +7,6 @@ func (c *Cache) evictIfNeeded() {
 		c.evict()
 	}
 
-	s.metrics.Snapshot()
-	s.metrics.RecordEviction()
 }
 
 func (c *Cache) evict() {
@@ -19,8 +16,6 @@ func (c *Cache) evict() {
 
 	node := c.tail
 	c.removeNodeCompletely(node)
-	s.metrics.Snapshot()
-	s.metrics.RecordEviction()
 }
 
 
@@ -41,8 +36,6 @@ func (c *Cache) RemoveExpired() {
 		if c.isExpired(node) {
 			c.removeNodeCompletely(node)
 			
-			s.metrics.Snapshot()
-			s.metrics.RecordEviction()
 		}
 	}
 }

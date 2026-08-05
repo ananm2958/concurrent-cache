@@ -1,3 +1,10 @@
+package metrics
+
+import (
+	"sync"
+	"time"
+)
+
 type Metrics struct {
     hits int64
     misses int64
@@ -9,72 +16,44 @@ type Metrics struct {
 
 	totalLatency float64
 
-    mutex sync.RLock
+	mutex sync.RWMutex
 }
 
-func Snapshot() {
-	metrics.mutex.RLock()
+type Snapshot struct { Hits, Misses, Evictions, Requests int64; Buckets []int64; Bounds []float64; TotalLatency float64 }
 
-	hits int = metrics.hits
-	misses int = metrics.misses
-	evictions int = metrics.evictions
-	requests int = metrics.requests
+func New() *Metrics {
+	bounds := []float64{0.001, 0.01, 0.1, 1}
+	return &Metrics{bucketBounds: bounds, buckets: make([]int64, len(bounds))}
+}
+
+func (m *Metrics) Snapshot() Snapshot {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	hits := m.hits
+	misses := m.misses
+	evictions := m.evictions
+	requests := m.requests
 	buckets := append([]int64(nil), m.buckets)
 	bounds := append([]float64(nil), m.bucketBounds)
-
-	metrics.mutex.RUnlock()
+	return Snapshot{hits, misses, evictions, requests, buckets, bounds, m.totalLatency}
 }
 
-func RecordRequest() {
-	metrics.Snapshot()
-	
-	metrics.mutex.Lock()
-	defer metrics.mutex.Unlock()
+func (m *Metrics) RecordRequest() { m.mutex.Lock(); defer m.mutex.Unlock(); m.requests++ }
 
-	metrics.requests++
+func (m *Metrics) RecordHit() { m.mutex.Lock(); defer m.mutex.Unlock(); m.hits++ }
+func (m *Metrics) RecordMiss() { m.mutex.Lock(); defer m.mutex.Unlock(); m.misses++ }
 
+func (m *Metrics) RecordEviction() { m.mutex.Lock(); defer m.mutex.Unlock(); m.evictions++ }
 
-func RecordHit() {
-	metrics.RecordRequest()
-	metrics.mutex.Lock()
-	defer metrics.mutex.Unlock()
-
-	metrics.hits++
-
-}
-
-func RecordMiss() {
-	metrics.RecordRequest()
-	metrics.mutex.Lock()
-	defer metrics.mutex.Unlock()
-
-	metrics.misses++
-}
-
-func RecordEviction() {
-	metrics.RecordRequest()
-	metrics.mutex.Lock()
-	defer metrics.mutex.Unlock()
-
-	metrics.evictions++
-}
-
-}
-
-func RecordLatency(start int) {
-	metrics.Snapshot()
-	metrics.RecordRequest()
-
-	duration := time.Now() - start
-
-	metrics.mutex.Lock()
-	defer metrics.mutex.Unlock()
-
-	metrics.totalLatency += duration
-
-	for i := 0; i < bucketBounds; i++ {
-		if duration <= bucketBounds[i] {
-			buckets[i]++
+func (m *Metrics) RecordLatency(start time.Time) {
+	duration := time.Since(start).Seconds()
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.totalLatency += duration
+	for i, bound := range m.bucketBounds {
+		if duration <= bound {
+			m.buckets[i]++
 			break	
 		}
 	}
