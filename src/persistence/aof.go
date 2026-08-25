@@ -1,31 +1,38 @@
-package aof
+package persistence
 
 import (
-	"os"
+	"encoding/json"
 	"fmt"
+	"os"
+	"sync"
 	"time"
 )
 
-func AppendSet (key T, value T, expiry T) {
-	f, err := os.OpenFile("appendonly.aof", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+type AOF struct { path string; mutex sync.Mutex }
+type operation struct { Type string `json:"type"`; Key string `json:"key"`; Value interface{} `json:"value,omitempty"`; Expiry time.Time `json:"expiry,omitempty"` }
+func NewAOF(path string) *AOF { return &AOF{path: path} }
+
+func (a *AOF) AppendSet(key string, value interface{}, expiry time.Time) error {
+	a.mutex.Lock(); defer a.mutex.Unlock()
+	f, err := os.OpenFile(a.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 
 	if err != nil {
-		fmt.Println("Error opening file: ", err)
-		return
+		return fmt.Errorf("open AOF: %w", err)
 	}
 
-	_, err = f.WriteString("SET", key, value, expiry)
-
+	defer f.Close()
+	return json.NewEncoder(f).Encode(operation{Type: "set", Key: key, Value: value, Expiry: expiry})
 }
 
 
-func AppendDelete (key T) {
-	f, err := os.OpenFile("appendonly.aof", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+func (a *AOF) AppendDelete(key string) error {
+	a.mutex.Lock(); defer a.mutex.Unlock()
+	f, err := os.OpenFile(a.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 
 	if err != nil {
-		fmt.Println("Error opening file: ", err)
-		return
+		return fmt.Errorf("open AOF: %w", err)
 	}
 	
-	_, err = f.WriteString("DELETE", key)
+	defer f.Close()
+	return json.NewEncoder(f).Encode(operation{Type: "delete", Key: key})
 }

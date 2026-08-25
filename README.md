@@ -58,6 +58,8 @@ Exposes Prometheus-style metrics via /metrics:
 - Cache hits / misses
 - Evictions
 - Request latency (histogram)
+- Rolling requests per second (last 1 second)
+- Concurrent open HTTP connections and total accepted connections
 
 Example:
 cache_requests_total 1200
@@ -69,6 +71,9 @@ cache_request_duration_seconds_bucket{le="0.01"} 1000
 
 cache_request_duration_seconds_sum 2.35
 cache_request_duration_seconds_count 1200
+
+cache_requests_per_second 85
+cache_concurrent_connections 12
 
 
 ### Architecture
@@ -128,14 +133,15 @@ curl -X POST http://localhost:8080/cache \
 - (Optional) AOF batching / flushing
 
 #### Testing
-Run tests:
+#### Load testing
 
-go test ./...
+The connection-load test starts both the HTTP server and its client in one
+process. Run it with any positive number of connections by setting
+`CACHE_LOAD_CONNECTIONS`:
 
-Includes:
-- Unit tests for cache correctness
-- Concurrency tests
-- Integration tests for HTTP endpoints
+```bash
+CACHE_LOAD_CONNECTIONS=250 go test -v ./src/server -run '^TestMaxConcurrentConnections$' -count=1
+
 
 #### Performance Goals
 - High throughput under concurrent load

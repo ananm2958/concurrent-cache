@@ -1,38 +1,27 @@
 package main
-package cache
-package eviction 
-package persistence
-package handlers
-package server
 
 import (
-    "fmt"       // Package for printing text to console or writing responses
-    "net/http"  // Package for creating HTTP servers and handling requests
+	"log"
+	"time"
+
+	"concurrent-cache/src/cache"
+	"concurrent-cache/src/metrics"
+	"concurrent-cache/src/persistence"
+	"concurrent-cache/src/server"
 )
 
-
-func startCleanup(c *cache.Cache, interval time.Duration) {
-    go func() {
-        ticker := time.NewTicker(interval)
-        defer ticker.Stop()
-
-        for range ticker.C {
-            c.RemoveExpired()
-        }
-    }()
-}
-
 func main() {
-    capacity int := 10000
-    ttl time.Duration = 60 * time.Second
-    cache := newCache(capacity, ttl)
-   
-    server := newServer(cache)
-
-    port int := 8080
-
-    startCleanup(cache, 10 *time.Second )
-    Start(8080)
-
-
+	c := cache.NewCache(10000, 60*time.Second)
+	if err := persistence.LoadSnapshot("snapshot.json", c); err != nil { log.Printf("load snapshot: %v", err) }
+	if err := persistence.ReplayAOF("appendonly.aof", c); err != nil { log.Printf("replay AOF: %v", err) }
+	go func() { ticker:=time.NewTicker(10*time.Second); defer ticker.Stop(); for range ticker.C { c.RemoveExpired() } }()
+	go func() {
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := persistence.SaveSnapshot("snapshot.json", c); err != nil { log.Printf("save snapshot: %v", err) }
+		}
+	}()
+	s := server.New(c, metrics.New(), persistence.NewAOF("appendonly.aof"))
+	log.Fatal(s.Start(8080))
 }

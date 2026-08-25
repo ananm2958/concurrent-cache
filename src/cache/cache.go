@@ -23,6 +23,13 @@ type Cache struct {
 	mutex    sync.RWMutex
 }
 
+// Entry is a serializable view of a cache value.
+type Entry struct {
+	Key string
+	Value interface{}
+	Expiry time.Time
+}
+
 func NewCache(capacity int, ttl time.Duration) *Cache {
 	return &Cache{
 		data:     make(map[string]*Node),
@@ -99,12 +106,18 @@ func (c *Cache) Get(key string) (interface{}, bool) {
 }
 
 func (c *Cache) Set(key string, value interface{}) {
+	c.SetWithExpiry(key, value, time.Now().Add(c.ttl))
+}
+
+// SetWithExpiry stores a value with an explicit expiry. A zero expiry means it
+// does not expire.
+func (c *Cache) SetWithExpiry(key string, value interface{}, expiry time.Time) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	if node, exists := c.data[key]; exists {
 		node.value = value
-		node.expiry = time.Now().Add(c.ttl)
+		node.expiry = expiry
 		c.moveToFront(node)
 		return
 	}
@@ -112,7 +125,7 @@ func (c *Cache) Set(key string, value interface{}) {
 	newNode := &Node{
 		key:    key,
 		value:  value,
-		expiry: time.Now().Add(c.ttl),
+		expiry: expiry,
 	}
 
 	c.data[key] = newNode
@@ -120,6 +133,21 @@ func (c *Cache) Set(key string, value interface{}) {
 	c.size++
 
 	c.evictIfNeeded()
+}
+
+// Entries returns a consistent copy of all non-expired cache entries.
+func (c *Cache) Entries() []Entry {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	entries := make([]Entry, 0, c.size)
+	for _, node := range c.data {
+		if c.isExpired(node) {
+			c.removeNodeCompletely(node)
+			continue
+		}
+		entries = append(entries, Entry{Key: node.key, Value: node.value, Expiry: node.expiry})
+	}
+	return entries
 }
 
 func (c *Cache) Delete(key string) bool {

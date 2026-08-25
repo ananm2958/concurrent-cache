@@ -1,41 +1,16 @@
-package snapshot
+package persistence
 
 import (
+	"encoding/json"
 	"fmt"
-	"time"
 	"os"
+
+	"concurrent-cache/src/cache"
 )
 
-type Entry struct {
-	Key    string        `json:"key"`
-	Value  interface{}   `json:"value"`
-	Expiry time.Time     `json:"expiry"`
-}
-
-func (s * Server) TakeSnap() {
-	f, err := os.OpenFile("snapshot.json", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-
-	if err != nil {
-		panic(err)
-	}
-
-	entries := make([]Entry, 0, len(s.cache.data))
-
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
-
-	for key, node := range cache.data {
-		entries = append(entries, Entry{
-			Key:    key,
-			Value:  node.value,
-			Expiry: node.expiry,
-		})
-	}
-
-	data, err1 := json.Marshal(entries)
-
-	if err != nil {
-		panic(err)
-	}
-
+// SaveSnapshot atomically replaces path with a JSON snapshot of the cache.
+func SaveSnapshot(path string, c *cache.Cache) error {
+	data, err := json.Marshal(c.Entries())
+	if err != nil { return fmt.Errorf("marshal snapshot: %w", err) }
+	return os.WriteFile(path, data, 0644)
 }
