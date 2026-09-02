@@ -1,149 +1,197 @@
-# Concurrent In-Memory Cache Server
+# Concurrent Cache
 
-### Overview
-This project implements a production-style cache system designed to handle high-concurrency workloads while maintaining simplicity, durability, observability, and correctness
-It combines:
-- Efficient in-memory data structures (map + doubly linked list for LRU)
-- Thread-safe access using sync.RWMutex
-- HTTP-based API for interaction
-- Persistence via append-only logging (AOF) and periodic snapshots
-- Metrics for monitoring latency, hit rate, and system performance
+An HTTP in-memory cache with LRU eviction, TTL, crash recovery, and Prometheus-style metrics. Callers GET, SET, and DELETE keys over HTTP without depending on Redis.
 
-## Key Features
-### Concurrent Cache
-- Thread-safe cache using sync.RWMutex
-- Supports high read/write throughput
-- Maintains correctness while supporting concurrent access
+## Features
 
-### LRU Eviction
-- Least Recently Used (LRU) policy
-- Implemented using:
-    - Hashmap for average O(1) lookup
-    - Doubly-linked list for O(1) updates
-- Automatically evicts older updates when cache capacity is exceeded
+- **Concurrent cache** — thread-safe access via `sync.RWMutex` around a hashmap and doubly linked list
+- **LRU eviction** — O(1) lookup and update; evicts the least recently used key when capacity is exceeded
+- **TTL expiration** — lazy removal on access plus a background sweep of expired keys
+- **HTTP API** — REST-style `GET` / `POST` / `PUT` / `DELETE` on `/cache` with JSON responses
+- **Persistence** — append-only log for writes, periodic JSON snapshots, snapshot-then-AOF recovery on startup
+- **Observability** — Prometheus text metrics on `/metrics` (hits, misses, latency, connections)
 
-### TTL Expiration
-- Each key has an expiration time
-- Expired keys are
-  - Removed lazily on access
-  - Cleaned periodically in the background
+## Tech Stack
 
-### HTTP Server
-- Implements REST-style endpoints:
-  - GET /cache?key=...
-  - POST /cache
-  - DELETE /cache?key=...
-- JSON-based request/response format
-- Handles concurrent requests as well
+| Layer | Technology |
+| --- | --- |
+| Language | Go 1.20+ |
+| HTTP | stdlib `net/http` |
+| Cache | Hashmap + doubly linked list (LRU) |
+| Concurrency | `sync.RWMutex` |
+| Persistence | JSON AOF + JSON snapshots |
+| Metrics | Prometheus exposition format |
 
-### Persistence
-#### Append Only File (AOF)
- - Logs every write operation (SET, DELETE)
- - Ensures durability across crashes
- - Replayed on startup to restore recent state
-#### Snapshotting
- - Periodically writes full cache state to disk
- - Reduces recovery time
- - Stored as JSON entries
-#### Recovery
- - On startup:
-     1. Load Snapshot
-     2. Replay AOF
-- Restores cache state after unclean shutdown
+## Project Structure
 
+```
+concurrent-cache/
+├── src/
+│   ├── main.go
+│   ├── cache/          # LRU + TTL
+│   ├── server/         # HTTP handlers + load tests
+│   ├── metrics/        # counters, histogram, connection stats
+│   └── persistence/    # AOF, snapshot, recovery
+├── load_test.sh
+├── go.mod
+└── README.md
+```
 
-### Metrics and Observability
-Exposes Prometheus-style metrics via /metrics:
-- Total requests
-- Cache hits / misses
-- Evictions
-- Request latency (histogram)
-- Rolling requests per second (last 1 second)
-- Concurrent open HTTP connections and total accepted connections
+## Prerequisites
 
-Example:
-cache_requests_total 1200
-cache_hits_total 900
-cache_misses_total 300
+- Go 1.20+
 
-cache_request_duration_seconds_bucket{le="0.001"} 400
-cache_request_duration_seconds_bucket{le="0.01"} 1000
+## Getting Started
 
-cache_request_duration_seconds_sum 2.35
-cache_request_duration_seconds_count 1200
+### 1. Clone the repository
 
-cache_requests_per_second 85
-cache_concurrent_connections 12
-
-
-### Architecture
-<img width="1502" height="338" alt="image" src="https://github.com/user-attachments/assets/53ce0997-df95-4f03-9dfc-a68effb756f5" />
-
-
-
-Components
-- cache/
-  - Core data structure (LRU + TTL)
-- server/
-  - HTTP server and request handlers
-- metrics/
-  - Tracks performance and system stats
-- persistence/
-  -  AOF logging, snapshotting, recovery
-
-### Request Flow
-#### GET
-<img width="910" height="647" alt="image" src="https://github.com/user-attachments/assets/ea9d4919-dabd-431a-adf8-6c187598854c" />
-
-#### SET / DELETE
-<img width="575" height="631" alt="image" src="https://github.com/user-attachments/assets/3bfa9b0f-57b2-4da5-b25d-348ede658513" />
-
-
-### Getting Started
-#### Prerequisites
-Go 1.20+
-
-#### Installation
+```bash
 git clone <repo-url>
 cd concurrent-cache
+```
+
+### 2. Install dependencies
+
+```bash
 go mod tidy
-Run the server
+```
+
+### 3. Run the server
+
+```bash
 go run src/main.go
+```
 
-#### Server starts on:
-http://localhost:8080
+The server starts on [http://localhost:8080](http://localhost:8080).
 
-#### Set a value
+### Runtime defaults
+
+These values are set in `src/main.go`:
+
+| Setting | Default |
+| --- | --- |
+| Listen port | `8080` |
+| Capacity | `10000` keys |
+| Default TTL (in-process `Cache.Set`) | `60s` |
+| Expired-key sweep | every `10s` |
+| Snapshot interval | every `1m` |
+| Snapshot file | `snapshot.json` |
+| AOF file | `appendonly.aof` |
+
+Keys set through the HTTP API with omitted or `0` `ttl_seconds` do not expire (zero expiry).
+
+## API Reference
+
+All cache routes live under `/cache`. Errors return JSON `{"error": "..."}`.
+
+| Status | Meaning |
+| --- | --- |
+| `200` | Success |
+| `400` | Missing key or invalid JSON |
+| `404` | Key not found |
+| `405` | Method not allowed |
+| `500` | AOF write failed |
+
+### Get a value
+
+`GET /cache?key=...`
+
+```bash
+curl "http://localhost:8080/cache?key=foo"
+```
+
+```json
+{"key":"foo","value":"bar"}
+```
+
+### Set a value
+
+`POST` or `PUT /cache`
+
+JSON body:
+
+```bash
 curl -X POST http://localhost:8080/cache \
-  -d '{"key":"foo","value":"bar"}'
-  
-#### Get a value
-- curl "http://localhost:8080/cache?key=foo"
-- Delete a value
-- curl -X DELETE "http://localhost:8080/cache?key=foo"
+  -H "Content-Type: application/json" \
+  -d '{"key":"foo","value":"bar","ttl_seconds":60}'
+```
 
-#### View metrics
-- curl http://localhost:8080/metrics
+If `Content-Type` is not `application/json`, query parameters work instead: `key`, `value`, and optional `ttl`.
 
-#### Background Processes
-- The system runs background goroutines for:
+```bash
+curl -X POST "http://localhost:8080/cache?key=foo&value=bar&ttl=60"
+```
 
-#### Periodic snapshotting
-- Expired key cleanup
-- (Optional) AOF batching / flushing
+### Delete a value
 
-#### Testing
-#### Load testing
+`DELETE /cache?key=...`
 
-The connection-load test starts both the HTTP server and its client in one
-process. Run it with any positive number of connections by setting
-`CACHE_LOAD_CONNECTIONS`:
+```bash
+curl -X DELETE "http://localhost:8080/cache?key=foo"
+```
+
+```json
+{"message":"deleted"}
+```
+
+### Metrics
+
+`GET /metrics`
+
+```bash
+curl http://localhost:8080/metrics
+```
+
+Exposes Prometheus text format. No auth required.
+
+## Persistence
+
+Writes go through two durability paths:
+
+- **AOF** — every SET and DELETE is appended as a JSON line to `appendonly.aof`. A failed append returns HTTP 500 so the caller knows the write was not logged.
+- **Snapshots** — once a minute the process dumps live, non-expired entries to `snapshot.json`.
+
+On startup the server:
+
+1. Loads `snapshot.json` (missing file is ignored)
+2. Replays `appendonly.aof` on top
+3. Skips entries whose expiry is already in the past
+
+That restores state after an unclean shutdown without replaying the full history from an empty cache.
+
+## Observability
+
+`GET /metrics` emits:
+
+| Metric | Description |
+| --- | --- |
+| `cache_requests_total` | Total `/cache` requests |
+| `cache_hits_total` | Successful GET and DELETE |
+| `cache_misses_total` | GET/DELETE for missing keys |
+| `cache_evictions_total` | LRU evictions (counter exists; not incremented from the cache today, so this stays `0`) |
+| `cache_requests_per_second` | Requests in the last 1 second |
+| `cache_connections_total` | Accepted HTTP connections |
+| `cache_concurrent_connections` | Open HTTP connections |
+| `cache_request_duration_seconds_bucket` | Latency histogram (`le` of 0.001, 0.01, 0.1, 1, `+Inf`) |
+| `cache_request_duration_seconds_sum` | Sum of request latency in seconds |
+| `cache_request_duration_seconds_count` | Requests included in the histogram |
+
+## Testing
+
+Unit tests:
+
+```bash
+go test ./src/cache ./src/metrics ./src/server
+```
+
+Connection load test (starts a test server in-process). Set any positive connection count with `CACHE_LOAD_CONNECTIONS`:
 
 ```bash
 CACHE_LOAD_CONNECTIONS=250 go test -v ./src/server -run '^TestMaxConcurrentConnections$' -count=1
+```
 
+Against a running server, `./load_test.sh` hammers `GET /cache` and samples throughput metrics:
 
-#### Performance Goals
-- High throughput under concurrent load
-- Low latency (millisecond-level p99)
-- Efficient memory usage with bounded capacity
+```bash
+./load_test.sh http://localhost:8080
+```
